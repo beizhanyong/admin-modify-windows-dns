@@ -1,0 +1,64 @@
+@ECHO OFF
+REM *****************************************************
+REM * Author:	高玉涵
+REM * File:	setdns.bat
+REM * Date:	20201119
+REM * Ver:      v1.1
+REM * LastModify:
+REM *			11.30 PC支持
+REM * Declare:	10.30关于修改业务终端网络配置的通知
+REM *           1.添加DNS:
+REM *             11.x.x.xxx
+REM *             11.x.x.xxx
+REM *           2.测试DNS
+REM *           3.终端保存
+REM *           4.终端重启
+REM *****************************************************
+setlocal enabledelayedexpansion
+set os=
+
+wmic bios get manufacturer|findstr /ic:"centerm">nul&&set os="ct"&goto init
+ver|findstr /ic:"10.0.">nul&&set os="win10"&goto init
+ver|findstr /ic:"5.1.">nul&&set os="xp"&goto init
+ver|findstr /ic:"6.1.">nul&&set os="win7"&goto init
+
+:init
+>nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+if '%errorlevel%' EQU '0' goto setdns
+
+:UACPrompt
+echo "正在请求管理员权限..."
+echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
+echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
+"%temp%\getadmin.vbs"
+exit /B
+
+:setdns
+for /f "delims=," %%n in ('Getmac /v /nh /fo csv') do (
+	(netsh interface ip set dns name=%%n source=static addr=8.8.8.8 register=primary)
+	(netsh interface ip add dns name=%%n addr=4.4.4.4)
+)
+
+if !os!=="ct" goto wr
+if !os!=="win10" goto win10
+if !os!=="xp" goto xp
+if !os!=="win7" goto win7
+
+goto err
+
+:wr
+ewfmgr c: -commit
+goto end
+
+:err
+color 4
+echo "配置成功"
+goto end
+
+:xp
+:win7
+:win10
+echo "配置成功!"
+
+:end
+pause
